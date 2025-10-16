@@ -18,11 +18,20 @@ public static class WorkerSaveLoadPatches
     [HarmonyPrefix]
     public static bool Prefix(DataTreeNode node, ref object __result)
     {
+        bool isResoniteWorker = false;
         DataTreeDictionary dict = (DataTreeDictionary)node;
+        DataTreeValue dataVal = (DataTreeValue)dict["Type"];
         var data = (DataTreeDictionary)dict["Data"];
+        if (dataVal.Value is long val)
+        {
+            isResoniteWorker = true;
+            SlotExtraInfo info = SlotLoader.SlotStore.First(s => s.Node == node || s.Node.Contains(node));
+            object workerData = Activator.CreateInstance(WorkerDataType, info.Types[(int)val].TypeName, dict["Data"]);
+            __result = workerData;
+        }
         foreach (var thing in data.EnumerateTree())
         {
-            if (thing is DataTreeValue dtval)
+            if (isResoniteWorker && thing is DataTreeValue dtval)
             {
                 if (dtval.IsURL)
                 {
@@ -31,24 +40,16 @@ public static class WorkerSaveLoadPatches
                     dtval.UpdateValue(new Uri(str.Substring(1).Replace("resdb", "neosdb")));
                 }
             }
-            else if (thing is DataTreeDictionary dtdict)
+            if (thing is DataTreeDictionary dtdict)
             {
                 // Change all assets to use DirectLoad which helps if certain variants are missing from the cloud
-                RecurseDirectLoad(dtdict);
+                ForceDirectLoad(dtdict);
             }
         }
-        DataTreeValue dataVal = (DataTreeValue)dict["Type"];
-        if (dataVal.Value is long val)
-        {
-            SlotExtraInfo info = SlotLoader.SlotStore.First(s => s.Node == node || s.Node.Contains(node));
-            object workerData = Activator.CreateInstance(WorkerDataType, info.Types[(int)val].TypeName, dict["Data"]);
-            __result = workerData;
-            return false;
-        }
-        return true;
+        return !isResoniteWorker;
     }
 
-    private static void RecurseDirectLoad(DataTreeDictionary dict)
+    private static void ForceDirectLoad(DataTreeDictionary dict)
     {
         foreach (var child in dict.Children)
         {
