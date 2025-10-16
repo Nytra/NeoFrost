@@ -35,17 +35,25 @@ public static class SlotLoader
     {
         DataTreeList types = node.TryGetList("Types");
         // DataTreeDictionary versions = node.TryGetDictionary("TypeVersions");
-        
+
         foreach (DataTreeNode typeNode in types)
         {
-            string typeName = typeNode.LoadString().Replace("[FrooxEngine]", "");
-            Type? type = WorkerManager.GetType(typeName);
-            if (type == null)
-                UniLog.Warning("Failed to decode type: " + typeName);
+            try
+            {
+                var rawStr = typeNode.LoadString();
+                Type? type = WorkerManager.GetType(rawStr);
 
-            TypeData data = new(type, typeName);
-            info.Types.Add(data);
-            UniLog.Log(data);
+                if (type == null)
+                    UniLog.Warning("Failed to decode type: " + rawStr);
+
+                TypeData data = new(type, rawStr);
+                info.Types.Add(data);
+                UniLog.Log(data);
+            }
+            catch (Exception ex)
+            {
+                UniLog.Log($"Exception in type parsing:\n{ex}");
+            }
         }
         
         // foreach (KeyValuePair<string, DataTreeNode> kvp in versions.Children)
